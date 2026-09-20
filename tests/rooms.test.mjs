@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {initial,activeResources,changeRoom,validateBooking} from '../public/domain.js';
+const date='2026-09-20';
+test('legacy state puts laptops first and permits new rooms',()=>{let s=initial();assert.equal(activeResources(s)[0][0],'laptops');s=changeRoom(s,'addRoom',{id:'room-test',name:'מדעים'},true,date);validateBooking(s,{resource:'room-test',date,period:1,quantity:1,name:'מורה',className:'א'},false,date);assert.equal(activeResources(s).length,8);});
+test('admin required and duplicates blocked',()=>{assert.throws(()=>changeRoom(initial(),'addRoom',{name:'מדעים',id:'room-test'},false,date));assert.throws(()=>changeRoom(initial(),'addRoom',{name:'חדר מחשבים',id:'room-test'},true,date));});
+test('removal preserves history and restoring reuses identity',()=>{let s=initial();s.bookings.push({id:'past',resource:'computers',date:'2026-09-13',period:1,quantity:1});s=changeRoom(s,'removeRoom',{id:'computers'},true,date);assert.equal(s.bookings.length,1);assert.ok(!activeResources(s).some(([id])=>id==='computers'));assert.throws(()=>validateBooking(s,{resource:'computers',date,period:1,quantity:1,name:'מורה',className:'א'},false,date));s=changeRoom(s,'addRoom',{id:'room-restore',name:'חדר מחשבים'},true,date);assert.ok(activeResources(s).some(([id])=>id==='computers'));});
+test('future recurring booking blocks removal and laptop pool cannot be removed',()=>{const s=initial();s.bookings.push({resource:'computers',date:'2026-09-13',until:'2026-10-04',recurring:true});assert.throws(()=>changeRoom(s,'removeRoom',{id:'computers'},true,date));assert.throws(()=>changeRoom(s,'removeRoom',{id:'laptops'},true,date));});

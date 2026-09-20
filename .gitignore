@@ -1,0 +1,9 @@
+node_modules/
+.firebase/
+*-debug.log
+*-debug.*.log
+.env
+.env.*
+*.local
+service-account*.json
+public/firebase-config.pending.js
