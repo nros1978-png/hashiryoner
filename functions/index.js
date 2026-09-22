@@ -22,7 +22,7 @@ export const manage=onCall({region:'europe-west1',maxInstances:5,secrets:[smtpUs
  }
  let notification;
  try{const next=await getFirestore().runTransaction(async tx=>{
- const snap=await tx.get(ref);let state=snap.exists()?snap.data():initial();
+ const snap=await tx.get(ref);let state=snap.exists?snap.data():initial();
  if(data.action==='book'){
  const x=data.booking||{},b={resource:x.resource,date:x.date,period:x.period,quantity:x.quantity,name:x.name,className:x.className,recurring:x.recurring===true,until:x.recurring===true?x.until:null,exceptions:[],id:randomUUID(),owner:request.auth.uid};
  validateBooking(state,b,admin);if(state.bookings.length>=2000)throw Error('המערכת הגיעה למגבלת ההזמנות. נדרש ארכוב על ידי מנהל המערכת.');state.bookings.push(b);
