@@ -83,6 +83,34 @@
 .status.approved { background: #e0f2e5; }
 .status.rejected { background: #f7dfe1; }
 
+.adminRoomGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.adminRoomCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid #d6dfd7;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.adminRoomCard strong { display: block; font-size: 18px; }
+.adminRoomCard small { display: block; margin-top: 8px; color: #657263; }
+.adminRoomCard .cardActions { justify-content: space-between; }
+#adminRoomDialog { width: min(680px, 94vw); }
+.dialogEyebrow { margin: 0 0 5px; color: #718070; font-size: 12px; }
+.roomDashboardActions { margin: 22px 0; }
+.roomFixedList { max-height: 58vh; overflow: auto; padding-left: 4px; }
+.roomFixedList .card { padding: 13px; margin: 8px 0; }
+
 @media (max-width: 720px) {
   .toolbar { align-items: flex-end; }
   .toolbarActions { flex-direction: column; }
@@ -91,4 +119,6 @@
   .inlineForm button { margin-bottom: 0; }
   #teacherList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fixedSlotGrid { grid-template-columns: 68px repeat(6, 54px); }
+  .adminRoomGrid { grid-template-columns: 1fr; }
+  .adminRoomCard { min-height: 0; }
 }
