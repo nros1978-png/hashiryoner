@@ -55,6 +55,29 @@
   line-height: 1;
   font-size: 19px;
 }
+
+#fixedSlotsField h3 { margin: 14px 0 4px; }
+#fixedSlotsField > p { margin: 0 0 10px; color: #657263; font-size: 13px; line-height: 1.45; }
+.fixedSlotGrid {
+  display: grid;
+  grid-template-columns: 74px repeat(6, minmax(58px, 1fr));
+  gap: 5px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.fixedSlotGrid .gridCorner,
+.fixedSlotGrid button,
+.fixedSlotGrid label,
+.fixedSlotGrid .gridOff {
+  min-height: 38px;
+  margin: 0;
+  border-radius: 8px;
+}
+.fixedSlotGrid button { padding: 6px 3px; font-size: 12px; font-weight: bold; }
+.fixedSlotGrid label { display: grid; place-items: center; background: #f5f7f1; border: 1px solid #d9e1d5; }
+.fixedSlotGrid label:has(input:checked) { background: #e7dced; border-color: #9b64a0; }
+.fixedSlotGrid input { width: 18px; height: 18px; margin: 0; }
+.fixedSlotGrid .gridOff { display: grid; place-items: center; background: #f3f3f0; color: #a6afa2; }
 .status { display: inline-block; border-radius: 999px; padding: 4px 9px; background: #eee; font-size: 12px; }
 .status.pending { background: #fff1d0; }
 .status.approved { background: #e0f2e5; }
@@ -67,4 +90,5 @@
   .inlineForm { display: block; }
   .inlineForm button { margin-bottom: 0; }
   #teacherList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fixedSlotGrid { grid-template-columns: 68px repeat(6, 54px); }
 }

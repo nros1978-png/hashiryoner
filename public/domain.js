@@ -53,6 +53,12 @@ export function validateBooking(s,b,admin=false,now=today()){
  if(b.recurring&&(!admin||!validDate(b.until)||b.until<b.date||b.until>addDays(b.date,366)))throw Error('שיריון קבוע דורש מנהל ותאריך סיום בטווח של שנה.');
  for(const d of dates(b))if(available(s,b.resource,d,b.period)<b.quantity)throw Error('אין מספיק מקום בתאריך '+d+'. ייתכן שמורה אחר כבר שריין.');
 }
+export function validateBookingBatch(s,bookings,admin=false,now=today()){
+ if(!Array.isArray(bookings)||!bookings.length||bookings.length>72)throw Error('יש לבחור בין שיעור אחד ל־72 שיעורים קבועים.');
+ const scratch={...s,bookings:[...s.bookings]};
+ for(const booking of bookings){validateBooking(scratch,booking,admin,now);scratch.bookings.push(booking);}
+ return bookings;
+}
 export function validateSettings(s,capacity,periods,now=today()){
  if(!Number.isInteger(capacity)||capacity<0||capacity>10000||!Array.isArray(periods)||periods.length!==7||periods.some(n=>!Number.isInteger(n)||n<0||n>12)||periods[6]!==0)throw Error('יש להזין כמות תקינה ומספר שיעורים בין 0 ל־12.');
  const next={...s,capacity,periods};
