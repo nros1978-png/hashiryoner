@@ -1,4 +1,5 @@
 node_modules/
+functions/.npm-cache/
 .firebase/
 *-debug.log
 *-debug.*.log

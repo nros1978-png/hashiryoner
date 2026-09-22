@@ -1,6 +1,21 @@
 export const resources=[['laptops','מחשבים ניידים'],['computers','חדר מחשבים'],['kisufim','חדר כיסופים'],['meeting','חדר ישיבות'],['lop','חדר לו״פ'],['front','בית מדרש קדמי'],['back','בית מדרש אחורי']];
 export const roomList=s=>s.rooms??resources.slice(1).map(([id,name])=>({id,name,active:true}));
 export const activeResources=s=>[resources[0],...roomList(s).filter(r=>r.active).map(r=>[r.id,r.name])];
+export const teacherNames=s=>Array.isArray(s.teachers)?s.teachers.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.trim()):[];
+export function changeTeacher(s,action,name,admin){
+ if(!admin)throw Error('נדרשת הרשאת מנהל.');
+ name=typeof name==='string'?name.trim().replace(/\s+/g,' '):'';
+ if(!name||name.length>80)throw Error('יש להזין שם מורה עד 80 תווים.');
+ const teachers=teacherNames(s);
+ if(action==='addTeacher'){
+  if(teachers.includes(name))throw Error('השם כבר נמצא ברשימת המורים.');
+  teachers.push(name);teachers.sort((a,b)=>a.localeCompare(b,'he'));
+ }else if(action==='removeTeacher'){
+  if(!teachers.includes(name))throw Error('שם המורה לא נמצא.');
+  teachers.splice(teachers.indexOf(name),1);
+ }else throw Error('פעולה לא מוכרת.');
+ return {...s,teachers};
+}
 export function changeRoom(s,action,payload,admin,now=today()){
  if(!admin)throw Error('נדרשת הרשאת מנהל.');
  const rooms=roomList(s).map(r=>({...r}));
@@ -20,7 +35,7 @@ export function changeRoom(s,action,payload,admin,now=today()){
  return {...s,rooms};
 }
 export const dayNames=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-export const initial=()=>({capacity:85,periods:[6,8,7,6,7,3,0],bookings:[]});
+export const initial=()=>({capacity:85,periods:[6,8,7,6,7,3,0],bookings:[],teachers:[]});
 export const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 export function validDate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!isNaN(Date.parse(s))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;}
 export const weekday=d=>new Date(d+'T12:00:00Z').getUTCDay();
@@ -34,6 +49,7 @@ export function validateBooking(s,b,admin=false,now=today()){
  if(!Number.isInteger(b.period)||b.period<1||b.period>s.periods[weekday(b.date)])throw Error('השיעור אינו קיים ביום זה.');
  if(!Number.isInteger(b.quantity)||b.quantity<1||(b.resource!=='laptops'&&b.quantity!==1))throw Error('כמות המחשבים אינה תקינה.');
  if(typeof b.name!=='string'||!b.name.trim()||b.name.length>80||typeof b.className!=='string'||!b.className.trim()||b.className.length>80)throw Error('יש למלא שם מורה וכיתה או קבוצה, עד 80 תווים.');
+ if(teacherNames(s).length&&!teacherNames(s).includes(b.name.trim()))throw Error('יש לבחור שם מתוך רשימת המורים.');
  if(b.recurring&&(!admin||!validDate(b.until)||b.until<b.date||b.until>addDays(b.date,366)))throw Error('שיריון קבוע דורש מנהל ותאריך סיום בטווח של שנה.');
  for(const d of dates(b))if(available(s,b.resource,d,b.period)<b.quantity)throw Error('אין מספיק מקום בתאריך '+d+'. ייתכן שמורה אחר כבר שריין.');
 }

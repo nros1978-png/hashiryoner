@@ -1,0 +1,29 @@
+.toolbarActions,
+.cardActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inlineForm {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  max-width: 700px;
+}
+
+.inlineForm label { flex: 1; }
+.inlineForm button { margin-bottom: 15px; white-space: nowrap; }
+.danger { color: #9c2530; border-color: #e1b8bc; }
+.status { display: inline-block; border-radius: 999px; padding: 4px 9px; background: #eee; font-size: 12px; }
+.status.pending { background: #fff1d0; }
+.status.approved { background: #e0f2e5; }
+.status.rejected { background: #f7dfe1; }
+
+@media (max-width: 720px) {
+  .toolbar { align-items: flex-end; }
+  .toolbarActions { flex-direction: column; }
+  .toolbarActions button { white-space: nowrap; font-size: 12px; padding: 9px; }
+  .inlineForm { display: block; }
+  .inlineForm button { margin-bottom: 0; }
+}
