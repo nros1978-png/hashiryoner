@@ -82,6 +82,7 @@
 .status.pending { background: #fff1d0; }
 .status.approved { background: #e0f2e5; }
 .status.rejected { background: #f7dfe1; }
+.status.cancelled { background: #ececea; color: #61665f; }
 
 .adminRoomGrid {
   display: grid;

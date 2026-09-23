@@ -4,7 +4,7 @@ import {getFirestore} from 'firebase-admin/firestore';
 import {defineSecret} from 'firebase-functions/params';
 import {randomUUID} from 'node:crypto';
 import nodemailer from 'nodemailer';
-import {initial,validateBooking,validateBookingBatch,validateSettings,validDate,weekday,occurs,changeRoom,changeTeacher,teacherNames,roomList,resources,dayNames} from './domain.js';
+import {initial,validateBooking,validateBookingBatch,validateSettings,validDate,today,weekday,occurs,changeRoom,changeTeacher,teacherNames,roomList,resources,dayNames} from './domain.js';
 initializeApp();
 const ADMIN_EMAIL='nros1978@gmail.com';
 const smtpUser=defineSecret('SMTP_USER');
@@ -36,7 +36,7 @@ export const manage=onCall({region:'europe-west1',maxInstances:5,secrets:[smtpUs
  }else if(data.action==='cancel'){
  const b=state.bookings.find(b=>b.id===data.id);if(!b||(!admin&&b.owner!==request.auth.uid))throw Error('אין הרשאה לביטול שיריון זה.');state.bookings=state.bookings.filter(b=>b.id!==data.id);
  }else if(data.action==='exception'){
- const b=state.bookings.find(b=>b.id===data.id);if(!admin||!b?.recurring||!validDate(data.date)||!occurs(b,data.date))throw Error('לא ניתן לשחרר שיריון זה.');b.exceptions=[...b.exceptions,data.date];
+ const b=state.bookings.find(b=>b.id===data.id);if(!b?.recurring||(!admin&&b.owner!==request.auth.uid)||!validDate(data.date)||data.date<today()||!occurs(b,data.date))throw Error('לא ניתן לשחרר שיריון זה.');b.exceptions=[...b.exceptions,data.date];
  }else if(data.action==='addRoom'||data.action==='removeRoom'){
  state=changeRoom(state,data.action,{name:data.name,id:data.action==='addRoom'?'room-'+randomUUID():data.id},admin);
  }else if(data.action==='addTeacher'||data.action==='removeTeacher'){
@@ -59,6 +59,11 @@ export const manage=onCall({region:'europe-west1',maxInstances:5,secrets:[smtpUs
   if(state.bookings.length+bookings.length>2000)throw Error('המערכת הגיעה למגבלת ההזמנות.');
   state.bookings.push(...bookings.map(b=>({...b,id:randomUUID(),owner:pending.owner})));tx.update(requestRef,{status:'approved',decidedAt:new Date().toISOString()});
  }else tx.update(requestRef,{status:'rejected',decidedAt:new Date().toISOString()});
+ }else if(data.action==='cancelRequest'){
+ if(typeof data.id!=='string')throw Error('בקשה לא תקינה.');
+ const requestRef=getFirestore().doc('fixedRequests/'+data.id),requestSnap=await tx.get(requestRef);
+ if(!requestSnap.exists||requestSnap.data().owner!==request.auth.uid||requestSnap.data().status!=='pending')throw Error('לא ניתן לבטל את הבקשה.');
+ tx.update(requestRef,{status:'cancelled',decidedAt:new Date().toISOString()});
  }else if(data.action==='settings'){
  if(!admin)throw Error('נדרשת הרשאת מנהל.');state=validateSettings(state,data.capacity,data.periods);
  }else throw Error('פעולה לא מוכרת.');
