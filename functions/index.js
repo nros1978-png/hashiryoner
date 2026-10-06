@@ -4,12 +4,13 @@ import {getFirestore} from 'firebase-admin/firestore';
 import {defineSecret} from 'firebase-functions/params';
 import {randomUUID} from 'node:crypto';
 import nodemailer from 'nodemailer';
+import {OWNER_EMAIL,hasAdminAccess,changeAdmins} from './admin-access.js';
 import {initial,validateBooking,validateBookingBatch,validateSettings,validDate,today,weekday,occurs,changeRoom,changeTeacher,teacherNames,roomList,resources,dayNames} from './domain.js';
 initializeApp();
-const ADMIN_EMAIL='nros1978@gmail.com';
 const smtpUser=defineSecret('SMTP_USER');
 const smtpPass=defineSecret('SMTP_PASS');
-const isAdmin=request=>request.auth?.token.email===ADMIN_EMAIL&&request.auth.token.email_verified===true;
+const accessRef=()=>getFirestore().doc('private/adminAccess');
+const accessEmails=snap=>Array.isArray(snap.data()?.emails)?snap.data().emails:[];
 const resourceName=(state,id)=>id==='laptops'?resources[0][1]:roomList(state).find(r=>r.id===id)?.name||id;
 const fixedBookings=input=>{
  if(!Array.isArray(input)||!input.length||input.length>72)throw Error('יש לבחור בין שיעור אחד ל־72 שיעורים קבועים.');
@@ -17,8 +18,18 @@ const fixedBookings=input=>{
 };
 export const manage=onCall({region:'europe-west1',maxInstances:5,secrets:[smtpUser,smtpPass]},async request=>{
  if(!request.auth)throw new HttpsError('unauthenticated','נדרשת כניסה.');
- const admin=isAdmin(request);
+ const access=await accessRef().get(),admin=hasAdminAccess(request.auth,accessEmails(access));
  const data=request.data||{},ref=getFirestore().doc('school/state');
+ if(data.action==='adminAccess')return {admin,emails:admin?[OWNER_EMAIL,...accessEmails(access)]:[],ownerEmail:admin?OWNER_EMAIL:null};
+ if(data.action==='addAdmin'||data.action==='removeAdmin'){
+  try{return await getFirestore().runTransaction(async tx=>{
+   const snap=await tx.get(accessRef()),emails=accessEmails(snap);
+   if(!hasAdminAccess(request.auth,emails))throw new HttpsError('permission-denied','נדרשת הרשאת מנהל.');
+   const next=changeAdmins(emails,data.action,data.email);
+   tx.set(accessRef(),{emails:next,updatedAt:new Date().toISOString(),updatedBy:request.auth.uid});
+   return {admin:true,emails:[OWNER_EMAIL,...next],ownerEmail:OWNER_EMAIL};
+  });}catch(err){if(err instanceof HttpsError)throw err;throw new HttpsError('failed-precondition',err.message);}
+ }
  if(data.action==='listRequests'){
   const query=admin?getFirestore().collection('fixedRequests').where('status','==','pending'):getFirestore().collection('fixedRequests').where('owner','==',request.auth.uid);
   const snap=await query.get();
@@ -26,6 +37,7 @@ export const manage=onCall({region:'europe-west1',maxInstances:5,secrets:[smtpUs
  }
  let notification;
  try{const next=await getFirestore().runTransaction(async tx=>{
+ const currentAccess=await tx.get(accessRef()),admin=hasAdminAccess(request.auth,accessEmails(currentAccess));
  const snap=await tx.get(ref);let state=snap.exists?snap.data():initial();
  if(data.action==='book'){
  const x=data.booking||{},b={resource:x.resource,date:x.date,period:x.period,quantity:x.quantity,name:x.name,className:x.className,recurring:x.recurring===true,until:x.recurring===true?x.until:null,exceptions:[],id:randomUUID(),owner:request.auth.uid};

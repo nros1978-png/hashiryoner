@@ -125,3 +125,8 @@
   .adminRoomGrid { grid-template-columns: 1fr; }
   .adminRoomCard { min-height: 0; }
 }
+.adminAccessList { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; }
+.adminAccessRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border: 1px solid #d6e0d2; border-radius: 12px; background: #fff; }
+.adminAccessRow span { overflow-wrap: anywhere; min-width: 0; }
+.adminAccessRow button { padding: 8px 12px; flex-shrink: 0; }
+#adminAccessError { color: #b42332; }
