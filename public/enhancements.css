@@ -130,3 +130,9 @@
 .adminAccessRow span { overflow-wrap: anywhere; min-width: 0; }
 .adminAccessRow button { padding: 8px 12px; flex-shrink: 0; }
 #adminAccessError { color: #b42332; }
+.replacementDialog { width: min(680px, calc(100vw - 24px)); }
+.replacementList { max-height: 32vh; overflow: auto; border: 1px solid #d6e0d2; border-radius: 12px; }
+.replacementList details { padding: 12px; border-bottom: 1px solid #d6e0d2; }
+.replacementList summary { cursor: pointer; line-height: 1.7; }
+.replacementList p { font-size: 14px; overflow-wrap: anywhere; }
+.replacementWarning { color: #a51f2b; font-weight: bold; }

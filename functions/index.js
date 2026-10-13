@@ -2,9 +2,11 @@ import {onCall,HttpsError} from 'firebase-functions/v2/https';
 import {initializeApp} from 'firebase-admin/app';
 import {getFirestore} from 'firebase-admin/firestore';
 import {defineSecret} from 'firebase-functions/params';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import nodemailer from 'nodemailer';
 import {OWNER_EMAIL,hasAdminAccess,changeAdmins} from './admin-access.js';
+import {prepareFixedApproval} from './fixed-approval.js';
+import {replacementPlan} from './replacement.js';
 import {initial,validateBooking,validateBookingBatch,validateSettings,validDate,today,weekday,occurs,changeRoom,changeTeacher,teacherNames,roomList,resources,dayNames} from './domain.js';
 initializeApp();
 const smtpUser=defineSecret('SMTP_USER');
@@ -16,6 +18,12 @@ const fixedBookings=input=>{
  if(!Array.isArray(input)||!input.length||input.length>72)throw Error('יש לבחור בין שיעור אחד ל־72 שיעורים קבועים.');
  return input.map(x=>({resource:x?.resource,date:x?.date,period:x?.period,quantity:x?.quantity,name:x?.name,className:x?.className,recurring:true,until:x?.until,exceptions:[]}));
 };
+const replacementToken=(bookings,conflicts,id)=>createHash('sha256').update(JSON.stringify([id||null,bookings,conflicts])).digest('hex');
+function applyReplacement(state,bookings,data,now){
+ const plan=replacementPlan(state,bookings,now),token=replacementToken(bookings,plan.conflicts,data.id);
+ if((plan.conflicts.length||data.overwriteToken)&&data.overwriteToken!==token)throw Error('יש לבדוק ולאשר את החלפת השיריונים. אם הרשימה השתנתה, לחצו שוב על אישור כדי לראות אותה מחדש.');
+ return plan.state;
+}
 export const manage=onCall({region:'europe-west1',maxInstances:5,secrets:[smtpUser,smtpPass]},async request=>{
  if(!request.auth)throw new HttpsError('unauthenticated','נדרשת כניסה.');
  const access=await accessRef().get(),admin=hasAdminAccess(request.auth,accessEmails(access));
@@ -39,11 +47,24 @@ export const manage=onCall({region:'europe-west1',maxInstances:5,secrets:[smtpUs
  try{const next=await getFirestore().runTransaction(async tx=>{
  const currentAccess=await tx.get(accessRef()),admin=hasAdminAccess(request.auth,accessEmails(currentAccess));
  const snap=await tx.get(ref);let state=snap.exists?snap.data():initial();
+ if(data.action==='previewFixed'){
+  if(!admin)throw Error('נדרשת הרשאת מנהל.');
+  const now=today();let bookings;
+  if(data.id){
+   if(typeof data.id!=='string'||data.id.includes('/'))throw Error('בקשה לא תקינה.');
+   const pendingSnap=await tx.get(getFirestore().doc('fixedRequests/'+data.id));
+   if(!pendingSnap.exists||pendingSnap.data().status!=='pending')throw Error('הבקשה אינה ממתינה לאישור.');
+   const pending=pendingSnap.data(),source=Array.isArray(pending.bookings)&&pending.bookings.length?pending.bookings:pending.booking?[pending.booking]:[];
+   bookings=prepareFixedApproval(fixedBookings(source),now);
+  }else bookings=fixedBookings(data.bookings);
+  const plan=replacementPlan(state,bookings,now);
+  return {bookings,conflicts:plan.conflicts,token:replacementToken(bookings,plan.conflicts,data.id)};
+ }
  if(data.action==='book'){
  const x=data.booking||{},b={resource:x.resource,date:x.date,period:x.period,quantity:x.quantity,name:x.name,className:x.className,recurring:x.recurring===true,until:x.recurring===true?x.until:null,exceptions:[],id:randomUUID(),owner:request.auth.uid};
  validateBooking(state,b,admin);if(state.bookings.length>=2000)throw Error('המערכת הגיעה למגבלת ההזמנות. נדרש ארכוב על ידי מנהל המערכת.');state.bookings.push(b);
  }else if(data.action==='bookBatch'){
- if(!admin)throw Error('נדרשת הרשאת מנהל.');const bookings=fixedBookings(data.bookings);validateBookingBatch(state,bookings,true);
+ if(!admin)throw Error('נדרשת הרשאת מנהל.');const bookings=fixedBookings(data.bookings);state=applyReplacement(state,bookings,data,today());
  if(state.bookings.length+bookings.length>2000)throw Error('המערכת הגיעה למגבלת ההזמנות. נדרש ארכוב על ידי מנהל המערכת.');state.bookings.push(...bookings.map(b=>({...b,id:randomUUID(),owner:request.auth.uid})));
  }else if(data.action==='cancel'){
  const b=state.bookings.find(b=>b.id===data.id);if(!b||(!admin&&b.owner!==request.auth.uid))throw Error('אין הרשאה לביטול שיריון זה.');state.bookings=state.bookings.filter(b=>b.id!==data.id);
@@ -67,7 +88,7 @@ export const manage=onCall({region:'europe-west1',maxInstances:5,secrets:[smtpUs
  if(!requestSnap.exists||requestSnap.data().status!=='pending')throw Error('הבקשה אינה ממתינה לאישור.');
  const pending=requestSnap.data();
  if(data.action==='approveRequest'){
-  const source=Array.isArray(pending.bookings)&&pending.bookings.length?pending.bookings:pending.booking?[pending.booking]:[],bookings=fixedBookings(source);validateBookingBatch(state,bookings,true);
+  const approvalDate=today(),source=Array.isArray(pending.bookings)&&pending.bookings.length?pending.bookings:pending.booking?[pending.booking]:[],bookings=prepareFixedApproval(fixedBookings(source),approvalDate);state=applyReplacement(state,bookings,data,approvalDate);
   if(state.bookings.length+bookings.length>2000)throw Error('המערכת הגיעה למגבלת ההזמנות.');
   state.bookings.push(...bookings.map(b=>({...b,id:randomUUID(),owner:pending.owner})));tx.update(requestRef,{status:'approved',decidedAt:new Date().toISOString()});
  }else tx.update(requestRef,{status:'rejected',decidedAt:new Date().toISOString()});
