@@ -1,4 +1,4 @@
-import {replacementPlan} from './replacement.js?v=12';
+import {replacementPlan} from './replacement.js?v=13';
 import {prepareFixedApproval} from './fixed-approval.js?v=12';
 import {resources,activeResources,roomList,changeRoom,teacherNames,changeTeacher,dayNames,initial,today,weekday,addDays,dates,at,available,validateBooking,validateBookingBatch,validateSettings} from './domain.js';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

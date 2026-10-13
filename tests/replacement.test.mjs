@@ -17,10 +17,24 @@ test('recurring exceptions preserve non-overlapping future and past dates and ex
  assert.deepEqual(old.exceptions,['2026-10-14','2026-10-21','2026-10-28']);
  assert.equal(occurs(old,'2026-10-07'),true);assert.equal(occurs(old,'2026-11-04'),true);
 });
-test('laptops replace all bookings in selected slots, even when there is spare capacity',()=>{
+test('laptops preserve existing reservations when capacity is sufficient, including exact fit',()=>{
  const s=initial();s.bookings=[b({id:'one',resource:'laptops',quantity:10,recurring:false}),b({id:'two',resource:'laptops',quantity:5,recurring:false})];
  const plan=replacementPlan(s,[b({resource:'laptops',quantity:3})],now);
- assert.equal(plan.conflicts.length,2);assert.equal(plan.state.bookings.length,0);
+ assert.equal(plan.conflicts.length,0);assert.deepEqual(plan.state.bookings,s.bookings);
+ const exact=replacementPlan(s,[b({resource:'laptops',quantity:70})],now);
+ assert.equal(exact.conflicts.length,0);assert.equal(exact.state.bookings.length,2);
+});
+test('laptop shortage replaces reservations only on shortage dates',()=>{
+ const s=initial();s.bookings=[b({id:'series',resource:'laptops',quantity:40}),b({id:'full',resource:'laptops',quantity:40,recurring:false})];
+ const plan=replacementPlan(s,[b({resource:'laptops',quantity:10})],now);
+ assert.equal(plan.conflicts.length,2);assert.deepEqual(plan.conflicts.map(c=>c.dates),[['2026-10-14'],['2026-10-14']]);
+ assert.equal(plan.state.bookings.length,1);assert.deepEqual(plan.state.bookings[0].exceptions,['2026-10-14']);
+ assert.equal(occurs(plan.state.bookings[0],'2026-10-21'),true);
+});
+test('combined new laptop demand is used when detecting shortages',()=>{
+ const s=initial();s.bookings=[b({resource:'laptops',quantity:40})];
+ const plan=replacementPlan(s,[b({resource:'laptops',quantity:25}),b({resource:'laptops',quantity:25})],now);
+ assert.equal(plan.conflicts.length,1);assert.equal(plan.conflicts[0].dates.length,3);
 });
 test('invalid or internally overlapping new batches never produce a replacement plan',()=>{
  for(const bookings of [[],[b(),b()],[b({date:'bad'})],[b({resource:'unknown'})],[b({resource:'laptops',quantity:100})]])assert.throws(()=>replacementPlan(initial(),bookings,now));
