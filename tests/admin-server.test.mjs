@@ -25,6 +25,16 @@ function server(){
  return {manage,records};
 }
 const auth=email=>({uid:email,token:{email,email_verified:true,firebase:{sign_in_provider:'google.com'}}});
+test('callable persists desired topic for single and approved fixed innovation visits and blocks unsupported slots',async()=>{
+ const {manage,records}=server(),b={resource:'innovation',date:'2026-10-20',period:2,quantity:1,name:'מורה',className:'ז',topic:'  רובוטיקה  '};
+ const saved=await manage({auth:auth('teacher@school.org'),data:{action:'book',booking:b}});
+ assert.equal(saved.bookings[0].topic,'רובוטיקה');
+ await assert.rejects(manage({auth:auth('teacher@school.org'),data:{action:'book',booking:{...b,date:'2026-10-21'}}}),/מרכז החדשנות/);
+ records.set('fixedRequests/innovation',{bookings:[{...b,date:'2026-10-22',period:5,recurring:true,until:'2027-06-30'}],owner:'teacher',status:'pending'});
+ const next=await manage({auth:auth(access.OWNER_EMAIL),data:{action:'approveRequest',id:'innovation'}});
+ assert.equal(next.bookings[1].topic,'רובוטיקה');assert.equal(domain.at(next,'innovation','2026-10-22',6).length,1);
+ assert.equal(records.get('fixedRequests/innovation').status,'approved');
+});
 test('pending old series is approved from next weekly date, without duplicate approval',async()=>{
  const {manage,records}=server(),b={resource:'back',date:'2026-10-07',period:6,quantity:1,name:'מורה',className:'ח',recurring:true,until:'2027-06-30'};
  records.set('fixedRequests/test',{bookings:[b],owner:'teacher',status:'pending'});

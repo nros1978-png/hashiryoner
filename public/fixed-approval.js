@@ -1,4 +1,4 @@
-import {validDate,addDays} from './domain.js';
+import {validDate,addDays} from './domain.js?v=14';
 
 // Rebase only pending approvals, never existing series or new booking input.
 export function prepareFixedApproval(bookings,now){
