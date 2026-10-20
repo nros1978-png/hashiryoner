@@ -136,3 +136,6 @@
 .replacementList summary { cursor: pointer; line-height: 1.7; }
 .replacementList p { font-size: 14px; overflow-wrap: anywhere; }
 .replacementWarning { color: #a51f2b; font-weight: bold; }
+.calendar.innovationCalendar { grid-template-columns: 70px repeat(2,minmax(0,1fr)); }
+.fixedSlotGrid.innovationGrid { grid-template-columns: 80px repeat(2,minmax(80px,1fr)); min-width: 0; }
+@media(max-width:720px) { .calendar.innovationCalendar { grid-template-columns:55px 1fr; } }

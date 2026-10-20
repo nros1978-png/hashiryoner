@@ -16,7 +16,7 @@ const accessEmails=snap=>Array.isArray(snap.data()?.emails)?snap.data().emails:[
 const resourceName=(state,id)=>id==='laptops'?resources[0][1]:roomList(state).find(r=>r.id===id)?.name||id;
 const fixedBookings=input=>{
  if(!Array.isArray(input)||!input.length||input.length>72)throw Error('יש לבחור בין שיעור אחד ל־72 שיעורים קבועים.');
- return input.map(x=>({resource:x?.resource,date:x?.date,period:x?.period,quantity:x?.quantity,name:x?.name,className:x?.className,topic:typeof x?.topic==='string'?x.topic.trim():'',recurring:true,until:x?.until,exceptions:[]}));
+ return input.map(x=>({resource:x?.resource,date:x?.date,period:x?.period,quantity:x?.quantity,name:x?.name,className:x?.className,innovationSingle:x?.innovationSingle===true,topic:typeof x?.topic==='string'?x.topic.trim():'',recurring:true,until:x?.until,exceptions:[]}));
 };
 const replacementToken=(bookings,conflicts,id)=>createHash('sha256').update(JSON.stringify([id||null,bookings,conflicts])).digest('hex');
 function applyReplacement(state,bookings,data,now){
@@ -61,7 +61,7 @@ export const manage=onCall({region:'europe-west1',maxInstances:5,secrets:[smtpUs
   return {bookings,conflicts:plan.conflicts,token:replacementToken(bookings,plan.conflicts,data.id)};
  }
  if(data.action==='book'){
- const x=data.booking||{},b={resource:x.resource,date:x.date,period:x.period,quantity:x.quantity,name:x.name,className:x.className,topic:typeof x.topic==='string'?x.topic.trim():'',recurring:x.recurring===true,until:x.recurring===true?x.until:null,exceptions:[],id:randomUUID(),owner:request.auth.uid};
+ const x=data.booking||{},b={resource:x.resource,date:x.date,period:x.period,quantity:x.quantity,name:x.name,className:x.className,innovationSingle:true,topic:typeof x.topic==='string'?x.topic.trim():'',recurring:x.recurring===true,until:x.recurring===true?x.until:null,exceptions:[],id:randomUUID(),owner:request.auth.uid};
  validateBooking(state,b,admin);if(state.bookings.length>=2000)throw Error('המערכת הגיעה למגבלת ההזמנות. נדרש ארכוב על ידי מנהל המערכת.');state.bookings.push(b);
  }else if(data.action==='bookBatch'){
  if(!admin)throw Error('נדרשת הרשאת מנהל.');const bookings=fixedBookings(data.bookings);state=applyReplacement(state,bookings,data,today());
@@ -80,7 +80,7 @@ export const manage=onCall({region:'europe-west1',maxInstances:5,secrets:[smtpUs
  validateBookingBatch(state,bookings,true);
  const id=randomUUID(),createdAt=new Date().toISOString();
  tx.set(getFirestore().doc('fixedRequests/'+id),{bookings,owner:request.auth.uid,status:'pending',createdAt});
- const schedule=bookings.map(x=>`יום ${dayNames[weekday(x.date)]}, ${lessonLabel(state,x.resource,x.period)}`).join('\n');
+ const schedule=bookings.map(x=>`יום ${dayNames[weekday(x.date)]}, ${lessonLabel(state,x.resource,x.period,x.innovationSingle===true)}`).join('\n');
  notification={subject:`השיריוּנר: בקשה חדשה לשיריון קבוע מאת ${b.name}`,text:`התקבלה בקשה לשיריון קבוע.\n\nמורה: ${b.name}\nכיתה / קבוצה: ${b.className}${b.topic?'\nנושא רצוי: '+b.topic:''}\nמשאב: ${resourceName(state,b.resource)}\nמועדים שבועיים:\n${schedule}\nעד תאריך: ${b.until}${b.resource==='laptops'?`\nמספר מחשבים בכל מועד: ${b.quantity}`:''}\n\nיש להיכנס למסך הניהול בשיריוּנר כדי לאשר או לדחות את הבקשה.`};
  }else if(data.action==='approveRequest'||data.action==='rejectRequest'){
  if(!admin||typeof data.id!=='string')throw Error('נדרשת הרשאת מנהל.');

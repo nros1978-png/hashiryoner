@@ -1,4 +1,4 @@
-import {dates,occurs,available,bookingPeriods,validateBookingBatch} from './domain.js?v=14';
+import {dates,occurs,available,bookingPeriods,validateBookingBatch} from './domain.js?v=15';
 
 // Validate new bookings before expanding dates, then remove only matching occurrences.
 export function replacementPlan(state,bookings,now){
@@ -20,8 +20,13 @@ export function replacementPlan(state,bookings,now){
   const candidates=new Set(bookingPeriods(state,b).flatMap(p=>[...(slots.get(JSON.stringify([b.resource,p]))||[])]));
   const matching=[...candidates].filter(d=>occurs(b,d)&&(b.resource!=='laptops'||available(state,'laptops',d,b.period)<laptopDemand.get(JSON.stringify([d,b.period])))).sort();
   if(!matching.length){remaining.push(b);continue;}
-  conflicts.push({booking:{...b},dates:matching});
+  const periods=bookingPeriods(state,b).filter(p=>matching.some(d=>slots.get(JSON.stringify([b.resource,p]))?.has(d)));
+  conflicts.push({booking:{...b},dates:matching,periods});
   if(b.recurring)remaining.push({...b,exceptions:[...new Set([...(b.exceptions||[]),...matching])].sort()});
+  // If an old two-lesson visit is only partly replaced, retain its other lesson.
+  if(bookingPeriods(state,b).length>1)for(const date of matching)for(const period of bookingPeriods(state,b)){
+   if(!slots.get(JSON.stringify([b.resource,period]))?.has(date))remaining.push({...b,id:b.id+'-retained-'+date+'-'+period,date,period,innovationSingle:true,recurring:false,until:null,exceptions:[]});
+  }
  }
  const next={...state,bookings:remaining};
  validateBookingBatch(next,bookings,true,now);
